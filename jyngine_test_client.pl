@@ -42,12 +42,12 @@ test_selector_module(JSONData) :-
 % List of test selectors.
 %
 selectors([
-    "0~0~indicator~id",
-    "0~0~indicator~value",
-    "0~0~country~id",
-    "0~0~country~value",
-    "0~0~value",
-    "0~0~date"
+    "0:0:indicator:id",
+    "0:0:indicator:value",
+    "0:0:country:id",
+    "0:0:country:value",
+    "0:0:value",
+    "0:0:date"
 ]).
 
 

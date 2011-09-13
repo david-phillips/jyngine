@@ -86,7 +86,7 @@ json_array_select(ArrayIndexSelector, JSONArray, Selected) :-
 %
 json_array_select_aux(_, [], _, null).
 json_array_select_aux(ListIndexSelector, [Selected|_], CurrentIndex, Selected) :-
-    ListIndexSelector = CurrentIndexr.
+    ListIndexSelector = CurrentIndex.
 json_array_select_aux(ListIndexSelector, [_|Rest], CurrentIndex, Selected) :-
     NextIndex is CurrentIndex + 1,
     json_array_select_aux(ListIndexSelector, Rest, NextIndex, Selected).
@@ -133,5 +133,5 @@ split_selector_aux([CurrentChar|Rest], CharStorage, WordStorage, Words) :-
     reverse(CharStorage, WordChars), name(Word, WordChars),
     split_selector_aux(Rest, [], [Word|WordStorage], Words).
 
-%% Currently, the tilde character.
-selector_delim(126).
+%% The colon character ':'
+selector_delim(58).
