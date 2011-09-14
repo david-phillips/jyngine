@@ -15,18 +15,48 @@ The selector syntax is currently a tad limited and a tad ugly, but can be used
 to grab a good deal from JSON.
 
 Selector Syntax:
+selector      -> root_symbol, value_lookups
+root_symbol   -> '@'
+value_lookups -> value_lookup
+value_lookups -> value_lookup value_lookups
+value_lookup  -> object_lookup
+value_lookup  -> array_lookup
+object_lookup -> '.' string
+array_lookup  -> '.' integer
 
-selector   -> key (~key)*
-key        -> object_key | array_key
-object_key -> [json_string ^~]
-array_key  -> [0-9][0-9]*
+Selector Examples:
 
-Example Selectors:
+{
+    "name": "Miles Davis Quintet",
 
-"tokens~0~text",
-"tokens~0~offset~0",
-"tokens~0~offset~1",
-"tokens~0~features"
+    "members": [
+        {
+            "name": "Miles Davis",
+            "instr": "trumpet"
+        },
+        {
+            "name": "Wayne Shorter",
+            "instr": "tenor sax"
+        },
+        {
+            "name": "Herbie Hancock",
+            "instr": "piano"
+        },
+        {
+            "name": "Ron Carter",
+            "instr": "bass"
+        },
+        {
+            "name": "Tony Williams",
+            "instr": "drums"
+        },
+    ]
+}
+
+@.name -> "Miles Davis Quintet"
+@.members.1.name -> "Wayne Shorter"
+@.members.1.instr -> "tenor sax"
+
 */
 
 
@@ -38,7 +68,7 @@ Example Selectors:
 % do all of the heavy lifting.
 %
 json_select(Selector, JSONValue, Selected) :-
-    split_selector(Selector, SelectorComponents),
+    split_selector(Selector, [_|SelectorComponents]),
     json_select_aux(SelectorComponents, JSONValue, Selected).
 
 
