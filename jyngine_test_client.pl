@@ -42,12 +42,12 @@ test_selector_module(JSONData) :-
 % List of test selectors.
 %
 selectors([
-    "0:0:indicator:id",
-    "0:0:indicator:value",
-    "0:0:country:id",
-    "0:0:country:value",
-    "0:0:value",
-    "0:0:date"
+    '1.0.indicator.id',
+    '1.0.indicator.value',
+    '1.0.country.id',
+    '1.0.country.value',
+    '1.0.value',
+    '1.0.date'
 ]).
 
 
@@ -56,8 +56,8 @@ selectors([
 evaluate_selectors([], _).
 evaluate_selectors([Selector|Selectors], JSONData) :-
     json_select(Selector, JSONData, Selected),
-    print('Selector: '), name(SelectorTerm, Selector), print(SelectorTerm), nl,
-    print('Selected: '), print(Selected), nl, nl,
+    format('Selector: ~w\n', [Selector]),
+    format('Selected: ~w\n\n', [Selected]),
     evaluate_selectors(Selectors, JSONData).
 
 

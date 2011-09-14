@@ -113,25 +113,32 @@ json_type(JSONValue, JSONType) :-
 % For example, if we wanted to index lists with the familiar square
 % bracket syntax, we'd need a more sophisticated parser.
 %
-split_selector(Selector, Words) :-
-    split_selector_aux(Selector, [], [], Words).
+split_selector(SelectorAtom, Words) :-
+    atom_chars(SelectorAtom, SelectorChars),
+    split_selector_aux(SelectorChars, 0, [], [], Words).
 
-%% split_selector_aux(+Selector, +CharStorage, +WordStorage, -Words)
+%% split_selector_aux(+Selector, +PrevChar, +CharStorage, +WordStorage, -Words)
 %
-split_selector_aux([], CharStorage, WordStorage, Words) :-
+split_selector_aux([CurrentChar|Rest], PrevChar, CharStorage, WordStorage, Words) :-
+    selector_delim(Delim),
+    (
+        CurrentChar \= Delim
+        ;
+        CurrentChar = Delim, PrevChar = '\\'
+    ),
+    !,
+    split_selector_aux(Rest, CurrentChar, [CurrentChar|CharStorage], WordStorage, Words).
+
+split_selector_aux([CurrentChar|Rest], PrevChar, CharStorage, WordStorage, Words) :-
+    selector_delim(Delim), CurrentChar = Delim, PrevChar \= '\\',
+    !,
+    reverse(CharStorage, WordChars), name(Word, WordChars),
+    split_selector_aux(Rest, CurrentChar, [], [Word|WordStorage], Words).
+
+split_selector_aux([], _, CharStorage, WordStorage, Words) :-
     reverse(CharStorage, WordChars), name(Word, WordChars),
     BackWords = [Word|WordStorage],
     reverse(BackWords, Words).
-split_selector_aux([CurrentChar|Rest], CharStorage, WordStorage, Words) :-
-    selector_delim(Delim), CurrentChar \= Delim,
-    !,
-    split_selector_aux(Rest, [CurrentChar|CharStorage], WordStorage, Words).
-split_selector_aux([CurrentChar|Rest], CharStorage, WordStorage, Words) :-
-    selector_delim(Delim), 
-    CurrentChar = Delim,
-    !,
-    reverse(CharStorage, WordChars), name(Word, WordChars),
-    split_selector_aux(Rest, [], [Word|WordStorage], Words).
 
 %% The colon character ':'
-selector_delim(58).
+selector_delim('.').
