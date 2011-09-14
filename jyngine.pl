@@ -101,6 +101,8 @@ json_object_select(Selector, JSONObject, Selected) :-
     member(NameValuePair, NameValueList),
     NameValuePair = (Selector = Selected).
 
+json_object_select(_, _, failure).
+
 
 
 %% json_array_select(+Selector, +JSONArray, -Selected)
@@ -108,13 +110,13 @@ json_object_select(Selector, JSONObject, Selected) :-
 % Given a array index and a array select the array element
 % at the given index.
 %
-json_array_select(_, [], null).
 json_array_select(ArrayIndexSelector, JSONArray, Selected) :-
     json_array_select_aux(ArrayIndexSelector, JSONArray, 0, Selected).
 
+json_array_select(_, _, failure).
+
 %% json_array_select_aux(+Selector, +JSONArray, +CurrentIndex, -Selected)
 %
-json_array_select_aux(_, [], _, null).
 json_array_select_aux(ListIndexSelector, [Selected|_], CurrentIndex, Selected) :-
     ListIndexSelector = CurrentIndex.
 json_array_select_aux(ListIndexSelector, [_|Rest], CurrentIndex, Selected) :-

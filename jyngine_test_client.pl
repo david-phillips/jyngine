@@ -47,7 +47,7 @@ selectors([
     '@.1.0.country.id',
     '@.1.0.country.value',
     '@.1.0.value',
-    '@.1.0.date'
+    '@.1.0.da\\te'
 ]).
 
 
