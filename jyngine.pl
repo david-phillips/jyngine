@@ -49,7 +49,7 @@ Selector Examples:
         {
             "name": "Tony Williams",
             "instr": "drums"
-        },
+        }
     ]
 }
 
@@ -72,7 +72,6 @@ json_select(Selector, JSONValue, Selected) :-
     json_select_aux(SelectorComponents, JSONValue, Selected).
 
 
-
 %% json_select_aux(+SplitSelector, +JSONValue, -Selected)
 %
 % This is the driver: Recurses down the list of selector
@@ -82,15 +81,15 @@ json_select(Selector, JSONValue, Selected) :-
 %
 json_select_aux([], JSONValue, JSONValue).
 json_select_aux([Selector|Selectors], JSONValue, Selected) :-
-    (
-        json_type(JSONValue, json_object), json_object_select(Selector, JSONValue, CurrentlySelected)
-        ;
-        json_type(JSONValue, json_array), json_array_select(Selector, JSONValue, CurrentlySelected)
-    ),
+    json_type(JSONValue, json_object), json_object_select(Selector, JSONValue, CurrentlySelected),
+    !,
+    json_select_aux(Selectors, CurrentlySelected, Selected).
+json_select_aux([Selector|Selectors], JSONValue, Selected) :-
+    json_type(JSONValue, json_array), json_array_select(Selector, JSONValue, CurrentlySelected),
+    !,
     json_select_aux(Selectors, CurrentlySelected, Selected).
 
 
-    
 %% json_object_select(+Selector, +JSONObject, -Selected)
 %
 % Given an object key and a JSON object select
@@ -100,9 +99,7 @@ json_object_select(Selector, JSONObject, Selected) :-
     json(NameValueList) = JSONObject,
     member(NameValuePair, NameValueList),
     NameValuePair = (Selector = Selected).
-
 json_object_select(_, _, failure).
-
 
 
 %% json_array_select(+Selector, +JSONArray, -Selected)
@@ -112,7 +109,6 @@ json_object_select(_, _, failure).
 %
 json_array_select(ArrayIndexSelector, JSONArray, Selected) :-
     json_array_select_aux(ArrayIndexSelector, JSONArray, 0, Selected).
-
 json_array_select(_, _, failure).
 
 %% json_array_select_aux(+Selector, +JSONArray, +CurrentIndex, -Selected)
@@ -124,53 +120,53 @@ json_array_select_aux(ListIndexSelector, [_|Rest], CurrentIndex, Selected) :-
     json_array_select_aux(ListIndexSelector, Rest, NextIndex, Selected).
 
 
-
 %% json_type(+JSONValue, -JSONType)
 %
-json_type(JSONValue, JSONType) :-
-    (is_list(JSONValue), JSONType = json_array)
-    ;
-    (json(_) = JSONValue, JSONType = json_object).
+json_type(json(_), json_object).
+json_type([], json_array).
+json_type([_|_], json_array).
 
-    
 
 %% split_selector(+Selector, -Words)
-%
-% Given a selector, split the selector on the delimiter D such
-% that selector_delim(D).
-%
-% Note that this idea of simply splitting selectors doesn't scale if
-% we want a more sophisticated syntax.
-%
-% For example, if we wanted to index lists with the familiar square
-% bracket syntax, we'd need a more sophisticated parser.
 %
 split_selector(SelectorAtom, Words) :-
     atom_chars(SelectorAtom, SelectorChars),
     split_selector_aux(SelectorChars, 0, [], [], Words).
 
-%% split_selector_aux(+Selector, +PrevChar, +CharStorage, +WordStorage, -Words)
+%% split_selector_aux(+Selector, +PrevChar, +CharStore, +WordStore, -Words)
 %
-split_selector_aux([CurrentChar|Rest], PrevChar, CharStorage, WordStorage, Words) :-
-    selector_delim(Delim),
-    (
-        CurrentChar \= Delim
-        ;
-        CurrentChar = Delim, PrevChar = '\\'
-    ),
+%
+split_selector_aux([CurrChar|Rest], PrevChar, CharStore, WordStore, Words) :-
+    analyze_char(PrevChar, CurrChar, object_delim),
     !,
-    split_selector_aux(Rest, CurrentChar, [CurrentChar|CharStorage], WordStorage, Words).
-
-split_selector_aux([CurrentChar|Rest], PrevChar, CharStorage, WordStorage, Words) :-
-    selector_delim(Delim), CurrentChar = Delim, PrevChar \= '\\',
+    reverse(CharStore, WordChars), name(Word, WordChars),
+    split_selector_aux(Rest, CurrChar, [], [Word|WordStore], Words).
+split_selector_aux([CurrChar|Rest], PrevChar, CharStore, WordStore, Words) :-
+    analyze_char(PrevChar, CurrChar, array_beg_delim),
     !,
-    reverse(CharStorage, WordChars), name(Word, WordChars),
-    split_selector_aux(Rest, CurrentChar, [], [Word|WordStorage], Words).
-
-split_selector_aux([], _, CharStorage, WordStorage, Words) :-
-    reverse(CharStorage, WordChars), name(Word, WordChars),
-    BackWords = [Word|WordStorage],
+    reverse(CharStore, WordChars), name(Word, WordChars),
+    split_selector_aux(Rest, CurrChar, [], [Word|WordStore], Words).
+split_selector_aux([CurrChar|Rest], PrevChar, CharStore, WordStore, Words) :-
+    analyze_char(PrevChar, CurrChar, array_end_delim),
+    !,
+    split_selector_aux(Rest, CurrChar, CharStore, WordStore, Words).
+split_selector_aux([CurrChar|Rest], PrevChar, CharStore, WordStore, Words) :-
+    analyze_char(PrevChar, CurrChar, non_delim),
+    CurrChar \= '\\',
+    !,
+    split_selector_aux(Rest, CurrChar, [CurrChar|CharStore], WordStore, Words).
+split_selector_aux([CurrChar|Rest], PrevChar, CharStore, WordStore, Words) :-
+    analyze_char(PrevChar, CurrChar, non_delim),
+    CurrChar = '\\',
+    !,
+    split_selector_aux(Rest, CurrChar, CharStore, WordStore, Words).
+split_selector_aux([], _, CharStore, WordStore, Words) :-
+    reverse(CharStore, WordChars), name(Word, WordChars),
+    BackWords = [Word|WordStore],
     reverse(BackWords, Words).
 
-%% The colon character ':'
-selector_delim('.').
+
+analyze_char(PrevChar, '.', object_delim) :- PrevChar \= '\\'.
+analyze_char(PrevChar, '[', array_beg_delim) :- PrevChar \= '\\'.
+analyze_char(PrevChar, ']', array_end_delim) :- PrevChar \= '\\'.
+analyze_char(_, _, non_delim).
