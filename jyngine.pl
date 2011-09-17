@@ -2,45 +2,15 @@
     
 
 
-/**
- * jyngine.pro
- * 
- * This is a small library that allows us to evaluate a selector expression
- * against a JSON structure and returns a selected JSON substructure.
- * 
- * The JSON structure isn't actual JSON but rather the Prolog structure that
- * the incoming JSON gets deserialized as by SWI's http/json library.
- * 
- * Currently, selection must start at the root of the JSON structure.
- * The root is designated by the '@' symbol.
- * 
- * Object values are selected using the familiar dot notation:
- * @.name1.name2
- * 
- * Array values are selected using the familiar index notation:
- * @name1[0]
- * 
- * Arrays also support Python-style slicing:
- * @name1[2:5]
- * 
- * Selector Examples:
- * 
- * {
- *     "name": "Miles Davis Quintet",
- * 
- *     "members": [
- *         { "name": "Miles Davis",    "instr": "trumpet"   },
- *         { "name": "Wayne Shorter",  "instr": "tenor sax" },
- *         { "name": "Herbie Hancock", "instr": "piano"     },
- *         { "name": "Ron Carter",     "instr": "bass"      },
- *         { "name": "Tony Williams",  "instr": "drums"     }
- *     ]
- * }
- * @.name            -> "Miles Davis Quintet"
- * @.members.1.name  -> "Wayne Shorter"
- * @.members.1.instr -> "tenor sax"
- * 
- */
+/*
+jyngine.pro
+
+A small library that allows for evaluation of a selector expression
+against a JSON structure and returns a selected JSON substructure.
+
+The JSON structure isnt actual JSON but rather the Prolog structure that
+the incoming JSON gets deserialized as by SWIs http/json library.
+*/
 
 
 
@@ -51,7 +21,7 @@
 % do all of the heavy lifting.
 %
 json_select(Selector, JSONValue, Selected) :-
-    split_selector(Selector, [_|SelectorComponents]),
+    analyze_selector(Selector, [_|SelectorComponents]),
     json_select_aux(SelectorComponents, JSONValue, Selected).
 
 
@@ -100,8 +70,7 @@ json_array_select([ArrayIndexSelector, array_type, _], JSONArray, Selected) :-
     atom_number(ArrayIndexSelector, Index),
     json_array_select_aux(Index, JSONArray, 0, Selected).
 json_array_select([_, array_slice_type, [SliceBeg,SliceEnd]], JSONArray, Selected) :-
-    atom_number(SliceBeg, Beg),
-    atom_number(SliceEnd, End),
+    atom_number(SliceBeg, Beg), atom_number(SliceEnd, End),
     json_array_select_slice([Beg,End], JSONArray, Selected).
 json_array_select(_, _, failure).
 
@@ -113,11 +82,14 @@ json_array_select_aux(ListIndexSelector, [_|Rest], CurrentIndex, Selected) :-
     NextIndex is CurrentIndex + 1,
     json_array_select_aux(ListIndexSelector, Rest, NextIndex, Selected).
 
-%%
+%% json_array_select_slice(+Slice, +JSONArray, -Range)
+%
+% Given slice [Beg,End], Range unifies with sublist whose
+% first element is JSONArray[Beg] and whose last element is
+% JSONArray[End-1].
 %
 json_array_select_slice(Slice, JSONArray, Range) :-
     json_array_select_slice_aux(Slice, JSONArray, 0, [], Range).
-
 json_array_select_slice([SliceBeg,SliceEnd], Array, failure) :-
     length(Array, Length),
     (SliceBeg < 0 ; SliceEnd >= Length).
@@ -129,8 +101,7 @@ json_array_select_slice_aux([_,SliceEnd], _, CurrentIndex, Storage, Matches) :-
     reverse(Storage, Matches).
 % Accumulating condition: SliceBeg =< CurrentIndex > SliceEnd
 json_array_select_slice_aux([SliceBeg,SliceEnd], [CurrentVal|Rest], CurrentIndex, Storage, Matches) :-
-    SliceBeg =< CurrentIndex,
-    SliceEnd > CurrentIndex,
+    SliceBeg =< CurrentIndex, SliceEnd > CurrentIndex,
     NextIndex is CurrentIndex + 1,
     !,
     json_array_select_slice_aux([SliceBeg,SliceEnd], Rest, NextIndex, [CurrentVal|Storage], Matches).
@@ -139,9 +110,6 @@ json_array_select_slice_aux([SliceBeg,SliceEnd], [_|Rest], CurrentIndex, Storage
     NextIndex is CurrentIndex + 1,
     json_array_select_slice_aux([SliceBeg,SliceEnd], Rest, NextIndex, Storage, Matches).
     
-    
-    
-
 
 %% json_type(+JSONValue, -JSONType)
 %
@@ -150,44 +118,44 @@ json_type([], json_array).
 json_type([_|_], json_array).
 
 
-%% split_selector(+Selector, -Selectors)
+%% analyze_selector(+Selector, -Selectors)
 %
-split_selector(SelectorAtom, Selectors) :-
+analyze_selector(SelectorAtom, Selectors) :-
     atom_chars(SelectorAtom, SelectorChars),
-    split_selector_aux(SelectorChars, 0, root_type, [], [], Selectors).
+    analyze_selector_aux(SelectorChars, 0, root_type, [], [], Selectors).
 
-%% split_selector_aux(+Selector, +PrevChar, +CharStore, +SelectorStore, -Selectors)
+%% analyze_selector_aux(+Selector, +PrevChar, +CharStore, +SelectorStore, -Selectors)
 %
 %
-split_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
+analyze_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
     analyze_char(PrevChar, CurrChar, object_delim),
     !,
     reverse(CharStore, SelectorChars), atom_chars(Selector, SelectorChars),
-    analyze_selector(Selector, Type, AnalyzedSelector),
-    split_selector_aux(Rest, CurrChar, object_type, [], [AnalyzedSelector|SelectorStore], Selectors).
-split_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
+    analyze_subselector(Selector, Type, AnalyzedSelector),
+    analyze_selector_aux(Rest, CurrChar, object_type, [], [AnalyzedSelector|SelectorStore], Selectors).
+analyze_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
     analyze_char(PrevChar, CurrChar, array_beg_delim),
     !,
     reverse(CharStore, SelectorChars), atom_chars(Selector, SelectorChars),
-    analyze_selector(Selector, Type, AnalyzedSelector),
-    split_selector_aux(Rest, CurrChar, array_type, [], [AnalyzedSelector|SelectorStore], Selectors).
-split_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
+    analyze_subselector(Selector, Type, AnalyzedSelector),
+    analyze_selector_aux(Rest, CurrChar, array_type, [], [AnalyzedSelector|SelectorStore], Selectors).
+analyze_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
     analyze_char(PrevChar, CurrChar, array_end_delim),
     !,
-    split_selector_aux(Rest, CurrChar, Type, CharStore, SelectorStore, Selectors).
-split_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
+    analyze_selector_aux(Rest, CurrChar, Type, CharStore, SelectorStore, Selectors).
+analyze_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
     analyze_char(PrevChar, CurrChar, non_delim),
     CurrChar \= '\\',
     !,
-    split_selector_aux(Rest, CurrChar, Type, [CurrChar|CharStore], SelectorStore, Selectors).
-split_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
+    analyze_selector_aux(Rest, CurrChar, Type, [CurrChar|CharStore], SelectorStore, Selectors).
+analyze_selector_aux([CurrChar|Rest], PrevChar, Type, CharStore, SelectorStore, Selectors) :-
     analyze_char(PrevChar, CurrChar, non_delim),
     CurrChar = '\\',
     !,
-    split_selector_aux(Rest, CurrChar, Type, CharStore, SelectorStore, Selectors).
-split_selector_aux([], _, Type, CharStore, SelectorStore, Selectors) :-
+    analyze_selector_aux(Rest, CurrChar, Type, CharStore, SelectorStore, Selectors).
+analyze_selector_aux([], _, Type, CharStore, SelectorStore, Selectors) :-
     reverse(CharStore, SelectorChars), atom_chars(Selector, SelectorChars),
-    analyze_selector(Selector, Type, AnalyzedSelector),
+    analyze_subselector(Selector, Type, AnalyzedSelector),
     BackSelectors = [AnalyzedSelector|SelectorStore],
     reverse(BackSelectors, Selectors).
 
@@ -200,7 +168,7 @@ analyze_char(PrevChar, ']', array_end_delim) :- PrevChar \= '\\'.
 analyze_char(_, _, non_delim).
 
 
-%% analyze_selector(+Selector, +SelectorType, -AnalyzedSelector)
+%% analyze_subselector(+Selector, +SelectorType, -AnalyzedSelector)
 %
 % Currently an analyzed selector is a three element list L:
 %   L[0] -> Selector string
@@ -210,12 +178,12 @@ analyze_char(_, _, non_delim).
 % The selector semantics is only given for cases where the selector
 % has some internal structure.  For example, an array slice.
 %
-analyze_selector(Selector, root_type, [Selector, root_type, null]).
-analyze_selector(Selector, object_type, [Selector, object_type, null]).
-analyze_selector(Selector, array_type, [Selector, array_type, null]) :-
+analyze_subselector(Selector, root_type, [Selector, root_type, null]).
+analyze_subselector(Selector, object_type, [Selector, object_type, null]).
+analyze_subselector(Selector, array_type, [Selector, array_type, null]) :-
     atom_chars(Selector, SelectorChars),
     not(member(':', SelectorChars)).
-analyze_selector(Selector, array_type, [Selector, array_slice_type, [SliceBeg, SliceEnd]]) :-
+analyze_subselector(Selector, array_type, [Selector, array_slice_type, [SliceBeg, SliceEnd]]) :-
     sub_atom(Selector, Pos, 1, After, ':'),
     sub_atom(Selector, 0, Pos, _, SliceBeg),
     SliceEndPos is Pos + 1,
