@@ -2,54 +2,62 @@
 :- use_module(library(http/json)).
 :- use_module('jyngine.pl').
 
+:- style_check(-atom).
 
 
-%%
-% The main method.
-%
-fetch_and_process_data :-
-    fetch_data(JSONData),
-    test_selector_module(JSONData).
-
-
-
-%%
-% Open stream to resource at URL.
-% Read JSON from stream into term.
-%
-fetch_data(FetchedData) :-
-    url_to_process(URL),
-    http_open(URL, DataStream, []),
-    json_read(DataStream, FetchedData, []),
-    close(DataStream).
-
-
-
-%%
-% Hardcoded World Bank URL
-%
-url_to_process('http://api.worldbank.org/countries/USA/indicators/AG.AGR.TRAC.NO?per_page=10&date=2005:2011&format=json').
-
-
-%%
-%
-test_selector_module(JSONData) :-
-    selectors(Selectors),
-    evaluate_selectors(Selectors, JSONData).
+test_selector_module :-
+    test_selectors(TestSelectors),
+    test_json_data(TestJSONAtom),
+    atom_json_term(TestJSONAtom, TestJSON, []),
+    evaluate_selectors(TestSelectors, TestJSON).
 
 
 %%
 % List of test selectors.
 %
-selectors([
-    '@[1][0].indicator.id',
-    '@[1][0].indicator.value',
-    '@[1][0].country.id',
-    '@[1][0].country.value',
-    '@[1][0].value',
-    '@[1][0].date'
+test_selectors([
+    '@.name',
+    '@.members[1].name',
+    '@.members[1].instr',
+    '@.members[0].assoc[1:3]',
+    '@.members[0].years\\.active.start'
 ]).
 
+
+test_json_data('
+{
+    "name": "Miles Davis Quintet",
+
+    "members": [
+        { 
+            "name": "Miles Davis",
+            "instr": "trumpet",
+            "assoc": [ "Billy Eckstine", "Charlie Parker", "John Coltrane", "Gil Evans" ],
+            "years.active": {"start": 1944, "end": 1991}
+        },
+        { 
+            "name": "Wayne Shorter",
+            "instr": "tenor sax",
+            "assoc": [ "Art Blakey", "Weather Report" ]
+        },
+        { 
+            "name": "Herbie Hancock",
+            "instr": "piano",
+            "assoc": [ "Quincy Jones", "Chick Corea", "Harvey Mason" ]
+        },
+        { 
+            "name": "Ron Carter",
+            "instr": "bass",
+            "assoc": [ "Jaki Byard", "Horace Silver", "McCoy Tyner" ]
+        },
+        { 
+            "name": "Tony Williams",
+            "instr": "drums",
+            "assoc": [ "Sam Rivers", "Lifetime" ]
+        },
+    ]
+}
+').
 
 
 %%
@@ -62,8 +70,7 @@ evaluate_selectors([Selector|Selectors], JSONData) :-
     evaluate_selectors(Selectors, JSONData).
 
 
-
 %%
 % Call the main method.
 %
-:- fetch_and_process_data.
+:- test_selector_module.
