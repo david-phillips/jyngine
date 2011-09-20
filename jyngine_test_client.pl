@@ -6,25 +6,39 @@
 
 
 test_selector_module :-
-    test_selectors(TestSelectors),
-    test_json_data(TestJSONAtom),
+    json_data(TestJSONAtom),
     atom_json_term(TestJSONAtom, TestJSON, []),
-    evaluate_selectors(TestSelectors, TestJSON).
+    passing_selectors(PassingSelectors),
+    failing_selectors(FailingSelectors),
+    print('Evaluating Passing Selectors'), nl,
+    print('----------------------------'), nl,
+    evaluate_selectors(PassingSelectors, TestJSON),
+    print('Evaluating Failing Selectors'), nl,
+    print('----------------------------'), nl,
+    evaluate_selectors(FailingSelectors, TestJSON).
 
 
 %%
 % List of test selectors.
 %
-test_selectors([
+passing_selectors([
     '@.name',
     '@.members[1].name',
     '@.members[1].instr',
     '@.members[0].assoc[1:3]',
     '@.members[0].years\\.active.start'
 ]).
+failing_selectors([
+    '@[0]',
+    '@.memberz',
+    '@.members[100].name',
+    '@.members[0].assoc[-1:3]',
+    '@.members[0].assoc[1:30]',
+    '@.members[0].years\.active.start'
+]).
 
 
-test_json_data('
+json_data('
 {
     "name": "Miles Davis Quintet",
 
