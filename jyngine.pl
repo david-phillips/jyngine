@@ -169,6 +169,35 @@ analyze_selector_aux([CurrChar|Rest], PrevChar, Type, Chars-[CurrChar|NewCharsHo
     analyze_selector_aux(Rest, CurrChar, Type, Chars-NewCharsHole, Selectors-SelectorsHole, Selectors).
 
 
+%% json_walk(+JSONData, +Callback)
+%
+% Depth-first traversal of JSONData, where
+% Callback is called for every visited node.
+%
+json_walk(JSONData, Callback) :-
+    json_type(JSONData, json_array),
+    json_walk_array(JSONData, Callback).
+json_walk(JSONData, Callback) :-
+    json_type(JSONData, json_object),
+    json_walk_object(JSONData, Callback).
+json_walk(JSONData, Callback) :-
+    Callable =.. [Callback,JSONData], call(Callable).
+json_walk_array([], _).
+json_walk_array([First|Rest], Callback) :-
+    Callable =.. [Callback,First], call(Callable),
+    json_walk(First, Callback),
+    json_walk_array(Rest, Callback).
+json_walk_object(JSONObject, Callback) :-
+    json(Object) = JSONObject,
+    json_walk_object_pairs(Object, Callback).
+json_walk_object_pairs([], _).
+json_walk_object_pairs([Pair|Rest], Callback) :-
+    Callable =.. [Callback,Pair], call(Callable),
+    (Name = Value) = Pair,
+    json_walk(Value, Callback),
+    json_walk_object_pairs(Rest, Callback).
+
+
 %% analyze_char(+PrevChar, +Char, -CharType)
 %
 analyze_char(PrevChar, '.', object_delim)    :- PrevChar \= '\\'.
