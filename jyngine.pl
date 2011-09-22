@@ -129,7 +129,7 @@ json_array_select_slice_aux([Beg,End], [_|Rest], CurrentIndex, Storage-Hole, Mat
 %
 json_type(json(_), json_object).
 json_type([], json_array).
-json_type([_|_], json_array).
+json_type([_|Rest], json_array) :- json_type(Rest, json_array).
 
 
 %% analyze_selector(+Selector, -Selectors)
